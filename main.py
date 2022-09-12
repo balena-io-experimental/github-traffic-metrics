@@ -9,7 +9,6 @@ start = time.time()
 
 load_dotenv()
 gh = Github(os.getenv("GITHUB_ACCESS_TOKEN"))
-
 repos = [repo for org in orgs for repo in gh.get_organization(org).get_repos()]
 print(f"Time to load repos {time.time() - start}s")
 print(f"{gh.rate_limiting[0]} request remaining out of {gh.rate_limiting[1]}s")
@@ -18,17 +17,20 @@ for repo in repos:
     start_repo = time.time()
 
     i = 0
-
-    while gh.rate_limiting[0] < 10:
+    remaining = gh.get_rate_limit().core.remaining
+    while remaining < 10:
         exp_backoff = min(2 ** i, 64)
-        print(f"Rate Limit reached with just {gh.rate_limiting[0]} remaining requests")
+        print(f"Rate Limit reached with just {remaining} remaining requests")
         print(f"Will now sleep for {exp_backoff}s")
         time.sleep(exp_backoff)
+        remaining = gh.get_rate_limit().core.remaining
+        i += 1
     try:
         print(repo.full_name)
         store_repo(repo)
         print(f"Time to load and store repo {time.time() - start_repo}s")
-        print(f"{gh.rate_limiting[0]} request remaining out of {gh.rate_limiting[1]}s")
+
+        print(f"{gh.rate_limiting[0]} request remaining out of {gh.rate_limiting[1]}")
 
     except Exception as e:
         print(f"Failed to store in {time.time() - start_repo}s")
